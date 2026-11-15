@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { createAuthScene } from './createAuthScene';
 
-interface AuthSceneProps {
+interface AuthIllustrationProps {
   className?: string;
 }
 
-export default function AuthScene({ className = '' }: AuthSceneProps) {
+export default function AuthIllustration({
+  className = '',
+}: AuthIllustrationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [sceneReady, setSceneReady] = useState(false);
 
@@ -67,21 +69,21 @@ export default function AuthScene({ className = '' }: AuthSceneProps) {
         className={`absolute inset-0 overflow-hidden transition-opacity duration-500 motion-reduce:transition-none ${sceneReady ? 'opacity-0' : 'opacity-100'}`}
       >
         <div
-          className="absolute top-1/2 left-1/2 size-[220px] rounded-full border-[25px] border-[#7fa4ec] border-t-[#c3d7ff] border-b-[#304b7e] shadow-[0_20px_48px_rgb(4_17_36/34%),inset_0_3px_14px_rgb(15_31_61/30%)]"
+          className="absolute top-1/2 left-1/2 size-[220px] rounded-full border-[19px] border-[#7fa4ec] border-t-[#c3d7ff] border-b-[#304b7e] shadow-[0_20px_48px_rgb(4_17_36/34%),inset_0_3px_14px_rgb(15_31_61/30%)]"
           style={{
-            transform: 'translate(-50%, -45%) rotateX(58deg) rotateZ(-25deg)',
+            transform: 'translate(-50%, -50%) rotateX(20deg) rotateZ(8deg)',
           }}
         />
         <div
-          className="absolute top-1/2 left-1/2 size-[134px] rounded-[25px] border border-[#dfebff]/50 bg-linear-140 from-[#daeaff]/95 via-[#6a97e4]/75 to-[#3159a4]/85 shadow-[16px_25px_35px_rgb(4_15_38/30%),inset_0_2px_1px_rgb(255_255_255/35%)]"
+          className="absolute top-1/2 left-1/2 h-[92px] w-[82px] rounded-[18px] border border-[#dfebff]/50 bg-linear-140 from-[#daeaff]/95 via-[#6a97e4]/75 to-[#3159a4]/85 shadow-[16px_25px_35px_rgb(4_15_38/30%),inset_0_2px_1px_rgb(255_255_255/35%)]"
           style={{
-            transform: 'translate(-48%, -75%) rotate(-14deg) skew(7deg, 5deg)',
+            transform: 'translate(-91%, -76%) rotate(-10deg)',
           }}
         />
         <div
-          className="absolute top-1/2 left-1/2 size-[74px] rounded-[18px] border border-[#dfebff]/50 bg-linear-145 from-[#698de4] via-[#365da7] to-[#244678] shadow-[16px_25px_35px_rgb(4_15_38/30%)]"
+          className="absolute top-1/2 left-1/2 h-[58px] w-[50px] rounded-[13px] border border-[#dfebff]/50 bg-linear-145 from-[#698de4] via-[#365da7] to-[#244678] shadow-[16px_25px_35px_rgb(4_15_38/30%)]"
           style={{
-            transform: 'translate(66%, 59%) rotate(17deg) skew(-5deg, 4deg)',
+            transform: 'translate(45%, 5%) rotate(10deg)',
           }}
         />
       </div>

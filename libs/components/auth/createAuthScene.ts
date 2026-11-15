@@ -2,7 +2,9 @@ import type * as Three from 'three';
 
 type ThreeModule = typeof import('three');
 
-const FULL_TURN_DURATION_SECONDS = 28;
+const SCULPTURE_TURN_DURATION_SECONDS = 28;
+const LARGE_BLOCK_TURN_DURATION_SECONDS = 12;
+const SMALL_BLOCK_TURN_DURATION_SECONDS = 8;
 
 function createRoundedBlockGeometry(
   THREE: ThreeModule,
@@ -55,6 +57,7 @@ export function createAuthScene(
   let renderer: Three.WebGLRenderer | undefined;
   let resizeObserver: ResizeObserver | undefined;
   let visibilityObserver: IntersectionObserver | undefined;
+  let largeBlock: Three.Mesh | undefined;
   let smallBlock: Three.Mesh | undefined;
   let animationFrame = 0;
   let previousFrameTime: number | null = null;
@@ -70,15 +73,22 @@ export function createAuthScene(
   }
 
   function updatePose(time: number) {
-    const wave = Math.sin(time * 0.32);
-    const rotationY = (time / FULL_TURN_DURATION_SECONDS) * Math.PI * 2;
-    sculpture.rotation.set(
-      0.05,
-      -0.12 + rotationY,
-      0.02 + Math.sin(time * 0.22) * 0.045,
-    );
+    const fullTurn = Math.PI * 2;
+    const sculptureRotation =
+      (time / SCULPTURE_TURN_DURATION_SECONDS) * fullTurn;
+    sculpture.rotation.set(0.05, -0.12 + sculptureRotation, 0.02);
+
+    // Each block spins around its fixed center while the parent sculpture turns.
+    if (largeBlock) {
+      const largeBlockRotation =
+        (time / LARGE_BLOCK_TURN_DURATION_SECONDS) * fullTurn;
+      largeBlock.rotation.set(0.2, -0.35 + largeBlockRotation, -0.19);
+    }
+
     if (smallBlock) {
-      smallBlock.position.y = -0.56 + wave * 0.09;
+      const smallBlockRotation =
+        (time / SMALL_BLOCK_TURN_DURATION_SECONDS) * fullTurn;
+      smallBlock.rotation.set(-0.25, 0.35 - smallBlockRotation, 0.2);
     }
   }
 
@@ -219,37 +229,31 @@ export function createAuthScene(
     });
     materials.push(ringMaterial);
 
-    const blockGeometry = createRoundedBlockGeometry(
-      THREE,
-      1.3,
-      1.55,
-      0.55,
-      0.2,
-    );
+    const blockGeometry = createRoundedBlockGeometry(THREE, 0.9, 1, 0.4, 0.16);
     geometries.push(blockGeometry);
-    const block = new THREE.Mesh(blockGeometry, glass);
-    block.position.set(-0.22, 0.25, 0.25);
-    block.rotation.set(0.2, -0.35, -0.19);
-    sculpture.add(block);
+    largeBlock = new THREE.Mesh(blockGeometry, glass);
+    largeBlock.position.set(-0.5, 0.28, 0);
+    largeBlock.rotation.set(0.2, -0.35, -0.19);
+    sculpture.add(largeBlock);
 
     const smallBlockGeometry = createRoundedBlockGeometry(
       THREE,
-      0.7,
-      0.8,
-      0.5,
-      0.16,
+      0.48,
+      0.58,
+      0.28,
+      0.12,
     );
     geometries.push(smallBlockGeometry);
     smallBlock = new THREE.Mesh(smallBlockGeometry, blue);
-    smallBlock.position.set(0.91, -0.56, 0.6);
+    smallBlock.position.set(0.7, -0.43, 0);
     smallBlock.rotation.set(-0.25, 0.35, 0.2);
     sculpture.add(smallBlock);
 
-    const ringGeometry = new THREE.TorusGeometry(1.37, 0.15, 24, 96);
+    const ringGeometry = new THREE.TorusGeometry(1.55, 0.13, 24, 96);
     geometries.push(ringGeometry);
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.set(1.12, -0.18, 0.2);
-    ring.position.set(0, -0.38, -0.17);
+    ring.rotation.set(0.35, -0.1, 0.05);
+    ring.position.set(0, 0, 0);
     sculpture.add(ring);
     scene.add(sculpture);
     updatePose(0);

@@ -55,7 +55,7 @@ libs/
   components/
     layout/AuthLayout.tsx         Shared authentication page layout
     auth/AccountCard.tsx          Signed-in account and sign-out button
-    auth/AuthScene.tsx            React wrapper and static 3D fallback
+    auth/AuthIllustration.tsx     React wrapper and static 3D fallback
     auth/createAuthScene.ts       Three.js scene, animation, and cleanup
     common/                       Reusable interface components
     project/                      Project table, filters, and modal
@@ -145,8 +145,11 @@ sign-out. Dashboard navigation will be connected when those pages are built.
 Backend errors appear in the form, and pending requests disable repeat submissions.
 
 The Three.js scene loads only in the browser on desktop-sized screens and starts
-a slow 360° rotation automatically, completing one turn every 28 seconds. It stays
-still for reduced-motion preferences, pauses while offscreen or in a hidden tab,
-and releases GPU resources when removed.
+a slow 360° rotation automatically, completing one turn every 28 seconds. The
+blocks sit inside the centered ring and also spin around their own centers: the
+large block turns every 12 seconds and the blue block every 8 seconds in the
+opposite direction.
+The scene stays still for reduced-motion preferences, pauses while offscreen or
+in a hidden tab, and releases GPU resources when removed.
 The static illustration remains available if 3D rendering fails. The mobile
 layout prioritizes the form and does not load the scene.

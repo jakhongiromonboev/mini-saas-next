@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import AuthScene from '@/libs/components/auth/AuthScene';
+import AuthIllustration from '@/libs/components/auth/AuthIllustration';
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -27,7 +27,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           </div>
 
           <div className="relative -mx-5 mt-2 hidden min-h-[330px] flex-1 md:block">
-            <AuthScene />
+            <AuthIllustration />
           </div>
 
           <div className="relative hidden pt-3 md:block">
