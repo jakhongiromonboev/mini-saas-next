@@ -1,0 +1,19 @@
+# Dependencies and build output
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Private environment files
+.env*
+**/.env*
+
+# Local tools and logs
+.vercel/
+*.log
+.DS_Store
+*.pem
+*.key
