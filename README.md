@@ -4,9 +4,9 @@ Next.js Pages Router frontend using TypeScript and Tailwind CSS. The folder
 organization follows Fairway Next: `pages/` contains routes and `libs/` holds
 shared frontend code.
 
-This first step includes the project configuration, a styled home page, and
-folders for the upcoming authentication and project dashboard features.
-The empty folders are reserved for later steps; they do not create routes yet.
+The authentication page includes login, signup, session restoration, and sign-out.
+Its responsive Tailwind layout uses a softly animated Three.js illustration.
+Admin and member project dashboards are reserved for the next step.
 
 ## Start developing
 
@@ -19,8 +19,8 @@ yarn install
 yarn dev
 ```
 
-Open **http://localhost:3000**. Edit `pages/index.tsx` to see your changes update
-in the browser. Stop the development server with `Ctrl+C`.
+Open **http://localhost:3000/account/join** (the home page also opens this form).
+Edit `pages/account/join.tsx` to see your changes update in the browser. Stop the development server with `Ctrl+C`.
 
 Dependencies use `yarn.lock`; use Yarn when adding or updating packages.
 For repeatable installation from the existing lockfile:
@@ -45,27 +45,30 @@ yarn install --frozen-lockfile
 
 ```text
 pages/
-  _app.tsx                 Global styles and shared app setup
-  _document.tsx            Base HTML document
-  index.tsx                Home page at /
-  account/                 Future login/signup page
-  _admin/                  Future admin dashboard
-  projects/                Future member project page
+  _app.tsx                        Global styles and shared app setup
+  _document.tsx                   Base HTML document
+  index.tsx                       Authentication page at /
+  account/join.tsx                Combined login/signup and account confirmation
+  _admin/                         Future admin dashboard
+  projects/                       Future member project page
 libs/
   components/
-    layout/                Shared page layouts
-    common/                Reusable interface components
-    project/               Project table, filters, and modal
-  auth/                    Future authentication state
-  hooks/                   Reusable React hooks
-  services/                Future calls to the Express API
-  enums/                   Shared frontend enums
-  types/                   Shared TypeScript interfaces
-  config.ts                Public API base URL
+    layout/AuthLayout.tsx         Shared authentication page layout
+    auth/AccountCard.tsx          Signed-in account and sign-out button
+    auth/AuthScene.tsx            React wrapper and static 3D fallback
+    auth/createAuthScene.ts       Three.js scene, animation, and cleanup
+    common/                       Reusable interface components
+    project/                      Project table, filters, and modal
+  auth/index.ts                   Cookie-based authentication functions
+  auth/AuthProvider.tsx           Current member and session restoration
+  hooks/useAuth.ts                Access shared authentication state
+  enums/                          Shared frontend enums
+  types/                          Shared TypeScript interfaces
+  config.ts                       Public API base URL
 styles/
-  globals.css              Tailwind import and global CSS
+  globals.css                     Tailwind import and global CSS
 public/
-  img/                     Static images
+  img/                            Static images
 ```
 
 The `@/` import alias points to the project root. For example,
@@ -104,8 +107,8 @@ required for this basic setup.
 ## Backend connection
 
 The Express backend runs separately on **http://localhost:4000**. Its public
-base URL is configured in `libs/config.ts`; API calls will be added in the
-next steps.
+base URL is configured in `libs/config.ts`. Run the backend while using the
+authentication page; it accepts the frontend origin `http://localhost:3000` by default.
 
 To override the address, create an ignored local `.env.local` file:
 
@@ -116,5 +119,34 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 `NEXT_PUBLIC_` values are visible to the browser. Only the public API address
 belongs here. Keep MongoDB credentials, JWT secrets, and seed passwords in
 the backend's private environment. All `.env*` files are ignored by Git.
-The upcoming API client will send the backend's HttpOnly cookie with
-`credentials: 'include'`.
+The API client sends the backend's HttpOnly cookie with
+`credentials: 'include'`. Tokens are managed by the browser; they are not stored
+in localStorage.
+
+## Authentication flow
+
+The page follows Fairway Next's handler style:
+
+- `doLogin` calls `logIn` from `libs/auth/index.ts`.
+- `doSignUp` calls `signUp` from the same file.
+- Both update the current member through `useAuth().updateMember`.
+- `AuthProvider` restores the session on startup and shares the current member.
+
+The auth functions use the existing REST endpoints and browser cookies:
+
+- **Login:** email and password are sent to `POST /member/login`.
+- **Signup:** name, email, and password are sent to `POST /member/signup`.
+  The backend creates a regular member and starts the session.
+- **Refresh:** `GET /member/detail` restores the current member.
+- **Sign out:** `POST /member/logout` clears the session cookie.
+
+After authentication, the page confirms the signed-in account and provides
+sign-out. Dashboard navigation will be connected when those pages are built.
+Backend errors appear in the form, and pending requests disable repeat submissions.
+
+The Three.js scene loads only in the browser on desktop-sized screens and starts
+a slow 360° rotation automatically, completing one turn every 28 seconds. It stays
+still for reduced-motion preferences, pauses while offscreen or in a hidden tab,
+and releases GPU resources when removed.
+The static illustration remains available if 3D rendering fails. The mobile
+layout prioritizes the form and does not load the scene.
