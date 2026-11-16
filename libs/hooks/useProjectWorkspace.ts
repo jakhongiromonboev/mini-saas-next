@@ -94,8 +94,24 @@ export function useProjectWorkspace() {
     return () => controller.abort();
   }, [isAdmin, memberId, requestKey, updateMember]);
 
-  // Never show a previous account's data or a failed attempt's totals.
   const current = data?.requestKey === requestKey ? data : null;
+
+  const addProject = (project: Project) => {
+    if (!isAdmin) return;
+
+    setData((previous) => {
+      if (previous?.requestKey !== requestKey || !previous.projects)
+        return previous;
+
+      return {
+        ...previous,
+        projects: [
+          project,
+          ...previous.projects.filter((item) => item._id !== project._id),
+        ],
+      };
+    });
+  };
 
   return {
     projects: current?.projects ?? null,
@@ -105,5 +121,6 @@ export function useProjectWorkspace() {
     isLoading: !current?.projects && !current?.error,
     membersLoading: current?.membersLoading ?? isAdmin,
     retry: () => setAttempt((previous) => previous + 1),
+    addProject,
   };
 }

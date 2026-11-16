@@ -5,6 +5,7 @@ import WorkspaceIcon, {
 import { MemberType } from '@/libs/enums/member.enum';
 import { ProjectStatus } from '@/libs/enums/project.enum';
 import { useProjectWorkspace } from '@/libs/hooks/useProjectWorkspace';
+import type { Project } from '@/libs/types/project/project';
 import {
   formatBudget,
   formatDeadline,
@@ -13,6 +14,7 @@ import {
   projectStatusLabels,
 } from '@/libs/utils/project';
 import ProjectTable from './ProjectTable';
+import AddProjectModal from './AddProjectModal';
 
 interface ProjectWorkspaceProps {
   memberType: MemberType;
@@ -37,9 +39,12 @@ export default function ProjectWorkspace({
     isLoading,
     membersLoading,
     retry,
+    addProject,
   } = useProjectWorkspace();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ProjectStatus | ''>('');
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const summary = projects ? getProjectSummary(projects) : null;
   const nextProject = summary?.nextProject;
   const query = search.trim().toLowerCase();
@@ -53,6 +58,19 @@ export default function ProjectWorkspace({
   const clearFilters = () => {
     setSearch('');
     setStatus('');
+  };
+
+  const handleProjectCreated = (project: Project) => {
+    addProject(project);
+    clearFilters();
+    setShowAddProject(false);
+    setSuccessMessage('Project created successfully.');
+  };
+
+  const checkProjects = () => {
+    setShowAddProject(false);
+    clearFilters();
+    retry();
   };
 
   const summaryCards: SummaryCard[] = [
@@ -108,8 +126,20 @@ export default function ProjectWorkspace({
         {isAdmin ? (
           <button
             type="button"
-            disabled
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-[#345edb] px-4 text-sm font-medium text-white shadow-[0_4px_12px_rgb(52_94_219/12%)] disabled:cursor-not-allowed disabled:opacity-60"
+            aria-haspopup="dialog"
+            aria-controls={showAddProject ? 'add-project-dialog' : undefined}
+            onClick={() => {
+              setSuccessMessage(null);
+              setShowAddProject(true);
+            }}
+            disabled={
+              isLoading ||
+              Boolean(error) ||
+              membersLoading ||
+              Boolean(memberError) ||
+              members.length === 0
+            }
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-[#345edb] px-4 text-sm font-medium text-white shadow-[0_4px_12px_rgb(52_94_219/12%)] hover:bg-[#294fc1] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#345edb] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <WorkspaceIcon name="plus" className="size-[18px]" />
             Add project
@@ -124,6 +154,20 @@ export default function ProjectWorkspace({
           </p>
         )}
       </div>
+
+      {successMessage && (
+        <p
+          role="status"
+          className="mt-5 rounded-xl border border-[#d5eadc] bg-[#edf7f0] px-4 py-3 text-sm text-[#38745a]"
+        >
+          {successMessage}
+        </p>
+      )}
+      {isAdmin && !membersLoading && !memberError && members.length === 0 && (
+        <p role="status" className="mt-5 text-sm text-[#687582]">
+          No active members are available for project assignment.
+        </p>
+      )}
 
       <section
         aria-label="Project summary"
@@ -291,6 +335,14 @@ export default function ProjectWorkspace({
           </p>
         )}
       </section>
+      {isAdmin && showAddProject && (
+        <AddProjectModal
+          members={members}
+          onClose={() => setShowAddProject(false)}
+          onCreated={handleProjectCreated}
+          onCheckProjects={checkProjects}
+        />
+      )}
     </>
   );
 }
