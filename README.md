@@ -74,7 +74,7 @@ NEXT_PUBLIC_API_URL=https://api.example.com
 
 Restart the development server after changing it. This value is included in the browser bundle; set it **before `yarn build`** for production and rebuild when it changes.
 
-All `.env*` files, including `.env.example`, are intentionally ignored by Git. Keep database credentials, JWT secrets, and demo passwords in the backend's private configuration. Only the public API base URL belongs in the frontend configuration.
+All `.env*` files, including `.env.example`, are intentionally ignored by Git. Keep database credentials, JWT secrets, and demo passwords in the backend's private configuration. The browser only needs the public API base URL; the optional proxy target is configured on the frontend server.
 
 ## Demo accounts
 
@@ -205,13 +205,32 @@ There is no automated test command included in this repository. To review the ap
 
 ## Production configuration
 
-Build and start the frontend with the intended public API URL configured:
+### Vercel frontend and Render API
+
+Import this repository into Vercel using the **Next.js** preset and the **master** production branch. Use the repository root, Node.js **22.x**, and Yarn. Keep the default build command (`yarn build`) and output directory.
+
+Set these environment variables in Vercel before building:
+
+| Variable              | Value                                                                           |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | `/api`                                                                          |
+| `API_PROXY_TARGET`    | The HTTPS origin of the Render API, for example `https://your-api.onrender.com` |
+
+Use the backend origin without an `/api` suffix. `next.config.ts` forwards `/api/:path*` to the corresponding backend route. For example, `/api/member/login` becomes `/member/login` on Render. The browser calls the frontend origin, so the existing HttpOnly cookie remains first-party even though the two services use different hosting domains.
+
+These values are applied during the build. Redeploy after changing either variable. Without `API_PROXY_TARGET`, no proxy is configured and the default local setup continues to call `http://localhost:4000` directly.
+
+On Render, set `NODE_ENV=production` and `CLIENT_ORIGIN` to the exact HTTPS frontend origin. Database credentials and the JWT signing secret stay in Render's private configuration; do not copy them into Vercel or Git.
+
+After deployment, check `/api/health` on the frontend URL, then verify login, refresh, admin/member access, project changes, and logout. Successful builds alone do not verify deployed cookies or database access.
+
+Render's free service may sleep while idle. The current frontend request timeout is 10 seconds, so the first request can time out while the API starts. Allow it to start before trying again; project writes are never automatically retried.
+
+### Running a production build locally
 
 ```bash
 yarn build
 yarn start
 ```
 
-Serve the frontend and API over HTTPS. Configure the backend's `CLIENT_ORIGIN` to match the deployed frontend origin and run the backend with `NODE_ENV=production`, which enables secure cookies.
-
-The current backend uses `SameSite=Lax` cookies. Keep the frontend and API on the same site, such as `app.example.com` and `api.example.com` over HTTPS. Unrelated hosting domains require a cookie and CORS configuration review before deployment. Verify login, session restoration, and logout again on the deployed URLs.
+For a locally hosted production setup, use HTTPS when the backend runs with `NODE_ENV=production`, which enables secure cookies.
