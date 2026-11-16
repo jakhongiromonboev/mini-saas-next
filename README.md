@@ -11,9 +11,10 @@ This repository contains the frontend. The separate [Mini SaaS API](https://gith
 - **Authentication:** signup, login, session restoration after refresh, and logout using a JWT in an HttpOnly cookie.
 - **Admin workspace:** view all projects, create projects, edit all project fields, assign one member, and permanently delete a project after confirmation.
 - **Member workspace:** view only assigned projects, with no management controls.
-- **Project discovery:** case-insensitive name search and status filtering, with loading, empty, and error states.
+- **Project discovery:** case-insensitive project-name search and status filtering. Admins can also search by the assigned member’s name.
 - **Live summaries:** totals update after confirmed API changes. Admins see project count, active count, and total budget; members see assigned count, active count, and the earliest unfinished deadline, including overdue work.
 - **Responsive interface:** navy navigation, blue accents, separate summary cards, and a table that scrolls horizontally on smaller screens. Dialogs support keyboard navigation and restore focus when closed.
+- **Startup recovery:** a branded connection screen and retry button when the API takes longer to start.
 - **Request feedback:** validation messages, pending states, duplicate-submission protection, and a list-refresh option when a write result cannot be confirmed.
 - **Authentication illustration:** a desktop Three.js scene with a static fallback and reduced-motion support.
 
@@ -98,7 +99,7 @@ New demo accounts use the backend's configured `SEED_PASSWORD`. There is no pass
 | `/_admin`       | Admin project dashboard (`ADMIN`)                                             |
 | `/projects`     | Assigned-project dashboard (`USER`)                                           |
 
-`AuthProvider` restores the current member through `GET /member/detail`. The `doLogin` and `doSignUp` handlers call the functions in `libs/auth/index.ts`, update shared authentication state, and redirect to the appropriate workspace.
+`AuthProvider` first checks `GET /health`, then restores the current member through `GET /member/detail`. A connection taking more than one second shows the startup screen. Health requests have a 10-second timeout and retry after two seconds, with a 90-second overall limit. If the API is still unavailable, **Try again** starts a new check. Leaving the page cancels pending work. This runs on a fresh page load; it does not continuously poll or keep the hosted API awake. The `doLogin` and `doSignUp` handlers call the functions in `libs/auth/index.ts`, update shared authentication state, and redirect to the appropriate workspace.
 
 Dashboard pages wait for the session check before rendering. Signed-out visitors return to login; signed-in users visiting the other role's page are redirected to their own workspace. The backend independently enforces authorization on every protected API route.
 
@@ -112,7 +113,7 @@ A project has five editable fields: name, status, deadline, budget in USD, and *
 - **Edit:** the same form opens with the selected project's values. The confirmed API response replaces that row.
 - **Delete:** a separate dialog names the project and focuses Cancel first. The row is removed only after the API confirms deletion.
 
-Search and status filtering operate on the fetched project list. Summary cards always describe the full set the current account can access, rather than just the filtered rows. Successful creation and editing clear filters to reveal the saved project; deletion preserves the current filters.
+Search and status filtering operate on the fetched project list. For admins, search matches the project name or assigned member’s name using the already-loaded member list. Members search project names within their assigned projects only. If member names cannot be loaded, project-name search remains available. Summary cards always describe the full set the current account can access, rather than just the filtered rows. Successful creation and editing clear filters to reveal the saved project; deletion preserves the current filters.
 
 The frontend does not automatically retry writes. If a response is lost or a project is no longer available, the modal offers **Check project list** to reload current data before continuing.
 
@@ -122,6 +123,7 @@ Authentication functions live in `libs/auth/index.ts`. Project and member reques
 
 | Method | Endpoint              | Purpose / access                                       |
 | ------ | --------------------- | ------------------------------------------------------ |
+| GET    | `/health`             | Check API readiness; public                            |
 | POST   | `/member/signup`      | Create a regular member and start a session            |
 | POST   | `/member/login`       | Start a session                                        |
 | POST   | `/member/logout`      | Clear the session cookie                               |
@@ -161,7 +163,7 @@ libs/
   hooks/
     useAuth.ts                    Shared authentication access
     useProjectWorkspace.ts        Project/member loading and confirmed changes
-  services/                       Project and member REST requests
+  services/                       Health, project, and member REST requests
   enums/                          Member roles, member status, project status
   types/                          Request and response interfaces
   utils/project.ts                Summaries, dates, budgets, and status labels

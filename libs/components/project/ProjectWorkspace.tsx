@@ -53,11 +53,17 @@ export default function ProjectWorkspace({
   const summary = projects ? getProjectSummary(projects) : null;
   const nextProject = summary?.nextProject;
   const query = search.trim().toLowerCase();
-  const visibleProjects = (projects ?? []).filter(
-    (project) =>
-      (!status || project.projectStatus === status) &&
-      project.projectName.toLowerCase().includes(query),
+  const memberNames = new Map(
+    members.map((member) => [member._id, member.memberName.toLowerCase()]),
   );
+  const visibleProjects = (projects ?? []).filter((project) => {
+    const memberName = memberNames.get(project.memberId) ?? '';
+    const matchesSearch =
+      project.projectName.toLowerCase().includes(query) ||
+      (isAdmin && memberName.includes(query));
+
+    return (!status || project.projectStatus === status) && matchesSearch;
+  });
   const hasFilters = Boolean(query || status);
   const canManageProjects =
     isAdmin &&
@@ -247,9 +253,13 @@ export default function ProjectWorkspace({
             />
             <input
               type="search"
-              aria-label={isAdmin ? 'Search projects' : 'Search your projects'}
+              aria-label={
+                isAdmin ? 'Search projects or members' : 'Search your projects'
+              }
               placeholder={
-                isAdmin ? 'Search projects…' : 'Search your projects…'
+                isAdmin
+                  ? 'Search projects or members…'
+                  : 'Search your projects…'
               }
               value={search}
               onChange={(event) => setSearch(event.target.value)}
