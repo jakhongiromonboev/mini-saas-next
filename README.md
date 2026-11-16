@@ -1,155 +1,217 @@
-# Mini SaaS Next
+# Mini SaaS Frontend
 
-Next.js Pages Router frontend using TypeScript and Tailwind CSS. The folder
-organization follows Fairway Next: `pages/` contains routes and `libs/` holds
-shared frontend code.
+A project-management dashboard with separate admin and member workspaces. Admins manage projects and assignments; members see the work assigned to them.
 
-The authentication page includes login, signup, session restoration, and sign-out.
-Its responsive Tailwind layout uses a softly animated Three.js illustration.
-Admin and member project dashboards are reserved for the next step.
+**Next.js Pages Router · React · TypeScript · Tailwind CSS · REST · HttpOnly cookies**
 
-## Start developing
+This repository contains the frontend. The separate [Mini SaaS API](https://github.com/jakhongiromonboev/mini-saas-api) provides authentication, authorization, and MongoDB persistence.
 
-Use Node.js 22.22.3 and Yarn Classic 1.22.22. The Node version is recorded
-in `.nvmrc` for developers using nvm (`nvm use`). The supported Node ranges
-are listed in `package.json`.
+## Features
+
+- **Authentication:** signup, login, session restoration after refresh, and logout using a JWT in an HttpOnly cookie.
+- **Admin workspace:** view all projects, create projects, edit all project fields, assign one member, and permanently delete a project after confirmation.
+- **Member workspace:** view only assigned projects, with no management controls.
+- **Project discovery:** case-insensitive name search and status filtering, with loading, empty, and error states.
+- **Live summaries:** totals update after confirmed API changes. Admins see project count, active count, and total budget; members see assigned count, active count, and the earliest unfinished deadline, including overdue work.
+- **Responsive interface:** navy navigation, blue accents, separate summary cards, and a table that scrolls horizontally on smaller screens. Dialogs support keyboard navigation and restore focus when closed.
+- **Request feedback:** validation messages, pending states, duplicate-submission protection, and a list-refresh option when a write result cannot be confirmed.
+- **Authentication illustration:** a desktop Three.js scene with a static fallback and reduced-motion support.
+
+## Technology
+
+| Area        | Implementation                                                              |
+| ----------- | --------------------------------------------------------------------------- |
+| Framework   | Next.js 16 with the Pages Router, React 19                                  |
+| Language    | TypeScript                                                                  |
+| Styling     | Tailwind CSS 4                                                              |
+| HTTP client | Native `fetch` with `credentials: 'include'`                                |
+| State       | React context for authentication; hooks for project data and local UI state |
+| Tooling     | Yarn Classic, ESLint, Prettier                                              |
+
+## Local setup
+
+### 1. Start the backend
+
+Follow the [backend setup instructions](https://github.com/jakhongiromonboev/mini-saas-api#getting-started) to install its dependencies and configure MongoDB and authentication. Then run these commands from the **backend** repository:
 
 ```bash
-yarn install
-yarn dev
+npm run seed
+npm run start:dev
 ```
 
-Open **http://localhost:3000/account/join** (the home page also opens this form).
-Edit `pages/account/join.tsx` to see your changes update in the browser. Stop the development server with `Ctrl+C`.
+Seeding requires the backend configuration described in its README. The seed creates one admin, three members, and six projects on a fresh database. Existing demo records retain their passwords and edits on subsequent runs.
 
-Dependencies use `yarn.lock`; use Yarn when adding or updating packages.
-For repeatable installation from the existing lockfile:
+The default API address is `http://localhost:4000`. Confirm it is running:
+
+```bash
+curl http://localhost:4000/health
+```
+
+The expected response is `{"status":"ok","service":"mini-saas-api"}`. The backend's `CLIENT_ORIGIN` must match the frontend origin, which is `http://localhost:3000` locally.
+
+### 2. Install and run the frontend
+
+Use **Node.js 22.22.3** and **Yarn Classic 1.22.22**. The Node version is recorded in `.nvmrc`; run `nvm use` if you use nvm.
+
+From the **frontend** repository:
 
 ```bash
 yarn install --frozen-lockfile
+yarn dev
 ```
 
-## Commands
+Open [http://localhost:3000](http://localhost:3000). Keep the backend running in a separate terminal. Use Yarn for dependency changes so that `yarn.lock` stays consistent.
 
-| Command             | Purpose                                                       |
-| ------------------- | ------------------------------------------------------------- |
-| `yarn dev`          | Start the development server on port 3000 with live updates   |
-| `yarn build`        | Build the application for production                          |
-| `yarn start`        | Run the production build on port 3000; run `yarn build` first |
-| `yarn typecheck`    | Check TypeScript types                                        |
-| `yarn lint`         | Run ESLint                                                    |
-| `yarn format:check` | Check formatting                                              |
-| `yarn format`       | Apply formatting                                              |
+### 3. Configure the API address when needed
 
-## Folder structure
+The frontend defaults to `http://localhost:4000` in `libs/config.ts`, so no frontend environment file is required for the default local setup.
+
+To use another API address, create a local `.env.local` file in the frontend root with this public setting:
+
+```dotenv
+NEXT_PUBLIC_API_URL=https://api.example.com
+```
+
+Restart the development server after changing it. This value is included in the browser bundle; set it **before `yarn build`** for production and rebuild when it changes.
+
+All `.env*` files, including `.env.example`, are intentionally ignored by Git. Keep database credentials, JWT secrets, and demo passwords in the backend's private configuration. Only the public API base URL belongs in the frontend configuration.
+
+## Demo accounts
+
+These accounts are created by the backend seed script:
+
+| Role   | Name        | Email                      |
+| ------ | ----------- | -------------------------- |
+| Admin  | Demo Admin  | `admin@mini-saas.example`  |
+| Member | Alex Kim    | `alex@mini-saas.example`   |
+| Member | Sara Lee    | `sara@mini-saas.example`   |
+| Member | Daniel Park | `daniel@mini-saas.example` |
+
+New demo accounts use the backend's configured `SEED_PASSWORD`. There is no password embedded in this frontend. Rerunning the seed does not reset existing passwords. Public signup creates a regular member (`USER`), not an admin; new members have no projects until an admin assigns work to them.
+
+## Pages and access
+
+| Route           | Purpose                                                                       |
+| --------------- | ----------------------------------------------------------------------------- |
+| `/`             | Authentication entry point; signed-in users are redirected to their workspace |
+| `/account/join` | Combined login and signup page                                                |
+| `/_admin`       | Admin project dashboard (`ADMIN`)                                             |
+| `/projects`     | Assigned-project dashboard (`USER`)                                           |
+
+`AuthProvider` restores the current member through `GET /member/detail`. The `doLogin` and `doSignUp` handlers call the functions in `libs/auth/index.ts`, update shared authentication state, and redirect to the appropriate workspace.
+
+Dashboard pages wait for the session check before rendering. Signed-out visitors return to login; signed-in users visiting the other role's page are redirected to their own workspace. The backend independently enforces authorization on every protected API route.
+
+Requests include the browser-managed HttpOnly cookie. JWTs are not stored in localStorage. Logout calls the backend to clear the cookie and clears the frontend's current member.
+
+## Project workflow
+
+A project has five editable fields: name, status, deadline, budget in USD, and **one assigned member** (`memberId`). Status values are `ACTIVE`, `ON_HOLD`, and `COMPLETED`. Budgets may be zero or a positive number; deadlines are submitted as `YYYY-MM-DD` and displayed without timezone shifts.
+
+- **Create:** select an active assignee and submit the form. The confirmed project is added to the list.
+- **Edit:** the same form opens with the selected project's values. The confirmed API response replaces that row.
+- **Delete:** a separate dialog names the project and focuses Cancel first. The row is removed only after the API confirms deletion.
+
+Search and status filtering operate on the fetched project list. Summary cards always describe the full set the current account can access, rather than just the filtered rows. Successful creation and editing clear filters to reveal the saved project; deletion preserves the current filters.
+
+The frontend does not automatically retry writes. If a response is lost or a project is no longer available, the modal offers **Check project list** to reload current data before continuing.
+
+## REST integration
+
+Authentication functions live in `libs/auth/index.ts`. Project and member requests live in `libs/services/`.
+
+| Method | Endpoint              | Purpose / access                                       |
+| ------ | --------------------- | ------------------------------------------------------ |
+| POST   | `/member/signup`      | Create a regular member and start a session            |
+| POST   | `/member/login`       | Start a session                                        |
+| POST   | `/member/logout`      | Clear the session cookie                               |
+| GET    | `/member/detail`      | Read the signed-in member                              |
+| GET    | `/member/all`         | List active accounts for assignment; admin only        |
+| GET    | `/project/all`        | All projects for admins; assigned projects for members |
+| POST   | `/project/create`     | Create a project; admin only                           |
+| PUT    | `/project/:id`        | Update a project; admin only                           |
+| PUT    | `/project/:id/delete` | Permanently delete a project; admin only               |
+
+Project updates and deletion both use **PUT**, following the existing API contract. API responses are checked before updating the interface. A `401` from a protected data request clears the frontend session; errors remain visible in the relevant form or workspace.
+
+## Code organization
 
 ```text
 pages/
-  _app.tsx                        Global styles and shared app setup
-  _document.tsx                   Base HTML document
-  index.tsx                       Authentication page at /
-  account/join.tsx                Combined login/signup and account confirmation
-  _admin/                         Future admin dashboard
-  projects/                       Future member project page
+  _app.tsx                         Global styles and AuthProvider
+  _document.tsx                    Base HTML document
+  index.tsx                        Root authentication entry point
+  account/join.tsx                 Login, signup, and role navigation
+  _admin/index.tsx                 Admin dashboard page
+  projects/index.tsx               Member dashboard page
 libs/
+  auth/
+    index.ts                      Authentication API functions
+    AuthProvider.tsx              Shared member state and session restoration
+    navigation.ts                 Role-to-workspace mapping
   components/
-    layout/AuthLayout.tsx         Shared authentication page layout
-    auth/AccountCard.tsx          Signed-in account and sign-out button
-    auth/AuthIllustration.tsx     React wrapper and static 3D fallback
-    auth/createAuthScene.ts       Three.js scene, animation, and cleanup
-    common/                       Reusable interface components
-    project/                      Project table, filters, and modal
-  auth/index.ts                   Cookie-based authentication functions
-  auth/AuthProvider.tsx           Current member and session restoration
-  hooks/useAuth.ts                Access shared authentication state
-  enums/                          Shared frontend enums
-  types/                          Shared TypeScript interfaces
+    auth/                         Authentication form support and illustration
+    common/                       Shared icons
+    layout/                       Authentication and dashboard layouts
+    project/
+      ProjectWorkspace.tsx        Filters, summaries, and modal coordination
+      ProjectTable.tsx            Rows and admin actions
+      ProjectModal.tsx            Shared Add/Edit form and validation
+      DeleteProjectModal.tsx      Delete confirmation and request feedback
+  hooks/
+    useAuth.ts                    Shared authentication access
+    useProjectWorkspace.ts        Project/member loading and confirmed changes
+  services/                       Project and member REST requests
+  enums/                          Member roles, member status, project status
+  types/                          Request and response interfaces
+  utils/project.ts                Summaries, dates, budgets, and status labels
   config.ts                       Public API base URL
-styles/
-  globals.css                     Tailwind import and global CSS
-public/
-  img/                            Static images
+styles/globals.css                Tailwind and global styles
+public/                           Static assets
 ```
 
-The `@/` import alias points to the project root. For example,
-`@/libs/config` refers to `libs/config.ts`.
+The `@/` import alias points to the repository root.
 
-## Tailwind, one small example
+## Commands and verification
 
-Tailwind provides utility classes, each responsible for a small styling rule.
-You combine them in React's `className`:
+| Command             | Purpose                                   |
+| ------------------- | ----------------------------------------- |
+| `yarn dev`          | Start the development server on port 3000 |
+| `yarn build`        | Create the production build               |
+| `yarn start`        | Serve the production build on port 3000   |
+| `yarn typecheck`    | Check TypeScript types                    |
+| `yarn lint`         | Run ESLint                                |
+| `yarn format:check` | Check formatting                          |
+| `yarn format`       | Apply formatting                          |
 
-```tsx
-<div className="rounded-xl bg-white p-6 shadow-sm">
-  <h1 className="text-2xl font-bold text-indigo-600">Mini SaaS</h1>
-</div>
+Before submitting changes:
+
+```bash
+yarn typecheck
+yarn lint
+yarn format:check
+yarn build
 ```
 
-| Class             | Effect with the default theme               |
-| ----------------- | ------------------------------------------- |
-| `rounded-xl`      | Rounded corners                             |
-| `bg-white`        | White background                            |
-| `p-6`             | Padding on every side: 1.5rem, usually 24px |
-| `shadow-sm`       | A small shadow                              |
-| `text-2xl`        | A larger font size                          |
-| `font-bold`       | Bold text                                   |
-| `text-indigo-600` | Indigo text color                           |
+There is no automated test command included in this repository. To review the application with the real backend:
 
-Responsive prefixes apply styles from a breakpoint upward. For example,
-`p-6 md:p-8` uses `p-6` on smaller screens and `p-8` at the default `md`
-breakpoint, 48rem, and above.
+1. Sign in as the demo admin and confirm that all projects and summary cards load.
+2. Create a clearly named test project assigned to a demo member. Refresh and confirm it persists.
+3. Edit its name, status, deadline, budget, and assignment. Refresh again and check the row and totals.
+4. Sign out, then sign in as the assigned member. Confirm that only assigned projects appear and no management actions are available. Visiting `/_admin` should return to `/projects`.
+5. Try name search and status filters. The summary cards should continue to describe the account's full project list.
+6. Sign back in as admin. Cancel the test project's delete dialog once, then confirm deletion. Refresh and check that the project remains deleted and totals are restored.
+7. Sign out and revisit a protected page. It should return to login.
 
-Tailwind v4 is loaded with `@import 'tailwindcss';` in `styles/globals.css`.
-The `@tailwindcss/postcss` plugin in `postcss.config.mjs` generates the CSS
-used by the classes in your source files. A `tailwind.config.js` file is not
-required for this basic setup.
+## Production configuration
 
-## Backend connection
+Build and start the frontend with the intended public API URL configured:
 
-The Express backend runs separately on **http://localhost:4000**. Its public
-base URL is configured in `libs/config.ts`. Run the backend while using the
-authentication page; it accepts the frontend origin `http://localhost:3000` by default.
-
-To override the address, create an ignored local `.env.local` file:
-
-```dotenv
-NEXT_PUBLIC_API_URL=http://localhost:4000
+```bash
+yarn build
+yarn start
 ```
 
-`NEXT_PUBLIC_` values are visible to the browser. Only the public API address
-belongs here. Keep MongoDB credentials, JWT secrets, and seed passwords in
-the backend's private environment. All `.env*` files are ignored by Git.
-The API client sends the backend's HttpOnly cookie with
-`credentials: 'include'`. Tokens are managed by the browser; they are not stored
-in localStorage.
+Serve the frontend and API over HTTPS. Configure the backend's `CLIENT_ORIGIN` to match the deployed frontend origin and run the backend with `NODE_ENV=production`, which enables secure cookies.
 
-## Authentication flow
-
-The page follows Fairway Next's handler style:
-
-- `doLogin` calls `logIn` from `libs/auth/index.ts`.
-- `doSignUp` calls `signUp` from the same file.
-- Both update the current member through `useAuth().updateMember`.
-- `AuthProvider` restores the session on startup and shares the current member.
-
-The auth functions use the existing REST endpoints and browser cookies:
-
-- **Login:** email and password are sent to `POST /member/login`.
-- **Signup:** name, email, and password are sent to `POST /member/signup`.
-  The backend creates a regular member and starts the session.
-- **Refresh:** `GET /member/detail` restores the current member.
-- **Sign out:** `POST /member/logout` clears the session cookie.
-
-After authentication, the page confirms the signed-in account and provides
-sign-out. Dashboard navigation will be connected when those pages are built.
-Backend errors appear in the form, and pending requests disable repeat submissions.
-
-The Three.js scene loads only in the browser on desktop-sized screens and starts
-a slow 360° rotation automatically, completing one turn every 28 seconds. The
-blocks sit inside the centered ring and also spin around their own centers: the
-large block turns every 12 seconds and the blue block every 8 seconds in the
-opposite direction.
-The scene stays still for reduced-motion preferences, pauses while offscreen or
-in a hidden tab, and releases GPU resources when removed.
-The static illustration remains available if 3D rendering fails. The mobile
-layout prioritizes the form and does not load the scene.
+The current backend uses `SameSite=Lax` cookies. Keep the frontend and API on the same site, such as `app.example.com` and `api.example.com` over HTTPS. Unrelated hosting domains require a cookie and CORS configuration review before deployment. Verify login, session restoration, and logout again on the deployed URLs.
