@@ -14,6 +14,8 @@ interface ProjectTableProps {
   membersLoading: boolean;
   canEdit: boolean;
   onEdit: (project: Project) => void;
+  canDelete: boolean;
+  onDelete: (project: Project) => void;
 }
 
 const statusClasses: Record<ProjectStatus, string> = {
@@ -29,6 +31,8 @@ export default function ProjectTable({
   membersLoading,
   canEdit,
   onEdit,
+  canDelete,
+  onDelete,
 }: ProjectTableProps) {
   const memberNames = new Map(
     members.map((member) => [member._id, member.memberName]),
@@ -141,9 +145,11 @@ export default function ProjectTable({
                       </button>
                       <button
                         type="button"
-                        disabled
+                        onClick={() => onDelete(project)}
+                        disabled={!canDelete}
+                        aria-haspopup="dialog"
                         aria-label={`Delete ${project.projectName}`}
-                        className="min-h-9 text-[#9b3749] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="min-h-9 rounded px-1 text-[#9b3749] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9b3749] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Delete
                       </button>

@@ -129,6 +129,22 @@ export function useProjectWorkspace() {
     });
   };
 
+  const removeProject = (projectId: string) => {
+    if (!isAdmin) return;
+
+    setData((previous) => {
+      if (previous?.requestKey !== requestKey || !previous.projects)
+        return previous;
+
+      return {
+        ...previous,
+        projects: previous.projects.filter(
+          (project) => project._id !== projectId,
+        ),
+      };
+    });
+  };
+
   return {
     projects: current?.projects ?? null,
     members: current?.members ?? [],
@@ -139,5 +155,6 @@ export function useProjectWorkspace() {
     retry: () => setAttempt((previous) => previous + 1),
     addProject,
     replaceProject,
+    removeProject,
   };
 }

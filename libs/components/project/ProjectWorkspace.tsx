@@ -15,6 +15,7 @@ import {
 } from '@/libs/utils/project';
 import ProjectTable from './ProjectTable';
 import ProjectModal from './ProjectModal';
+import DeleteProjectModal from './DeleteProjectModal';
 
 interface ProjectWorkspaceProps {
   memberType: MemberType;
@@ -41,11 +42,13 @@ export default function ProjectWorkspace({
     retry,
     addProject,
     replaceProject,
+    removeProject,
   } = useProjectWorkspace();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ProjectStatus | ''>('');
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const summary = projects ? getProjectSummary(projects) : null;
   const nextProject = summary?.nextProject;
@@ -92,8 +95,20 @@ export default function ProjectWorkspace({
     closeProjectModal();
   };
 
+  const openDeleteProject = (project: Project) => {
+    setSuccessMessage(null);
+    setDeletingProject(project);
+  };
+
+  const handleProjectDeleted = (projectId: string) => {
+    removeProject(projectId);
+    setDeletingProject(null);
+    setSuccessMessage('Project deleted successfully.');
+  };
+
   const checkProjects = () => {
     closeProjectModal();
+    setDeletingProject(null);
     clearFilters();
     retry();
   };
@@ -288,6 +303,8 @@ export default function ProjectWorkspace({
           membersLoading={membersLoading}
           canEdit={canManageProjects}
           onEdit={openEditProject}
+          canDelete={isAdmin && !isLoading && !error}
+          onDelete={openDeleteProject}
         />
         {isLoading ? (
           <div
@@ -364,6 +381,15 @@ export default function ProjectWorkspace({
           members={members}
           onClose={closeProjectModal}
           onSaved={handleProjectSaved}
+          onCheckProjects={checkProjects}
+        />
+      )}
+      {isAdmin && deletingProject && (
+        <DeleteProjectModal
+          key={deletingProject._id}
+          project={deletingProject}
+          onClose={() => setDeletingProject(null)}
+          onDeleted={handleProjectDeleted}
           onCheckProjects={checkProjects}
         />
       )}
