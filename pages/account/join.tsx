@@ -34,7 +34,8 @@ const Join: NextPage = () => {
   const visibleError = error ?? (sessionErrorDismissed ? null : sessionError);
   const actionLabel = loginView ? 'Sign in' : 'Create account';
   const pendingLabel = loginView ? 'Signing in…' : 'Creating account…';
-  const pageTitle = member ? 'Your account' : actionLabel;
+  const pageTitle =
+    member || isLoading ? 'Mini SaaS' : `${actionLabel} | Mini SaaS`;
   const dashboardPath = member ? getDashboardPath(member.memberType) : null;
 
   useEffect(() => {
@@ -176,7 +177,7 @@ const Join: NextPage = () => {
   return (
     <>
       <Head>
-        <title>{pageTitle} | Mini SaaS</title>
+        <title>{pageTitle}</title>
         <meta
           name="description"
           content="Sign in or create your Mini SaaS account to keep your projects, deadlines, and team in one place."

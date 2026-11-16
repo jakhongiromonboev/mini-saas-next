@@ -10,13 +10,11 @@ import { useAuth } from '@/libs/hooks/useAuth';
 
 interface DashboardLayoutProps {
   requiredRole: MemberType;
-  title: string;
   children: ReactNode;
 }
 
 export default function DashboardLayout({
   requiredRole,
-  title,
   children,
 }: DashboardLayoutProps) {
   const router = useRouter();
@@ -69,7 +67,7 @@ export default function DashboardLayout({
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#f5f6f3] px-6 text-[#243244]">
         <Head>
-          <title>Opening workspace | Mini SaaS</title>
+          <title>Mini SaaS</title>
         </Head>
         <main className="w-full max-w-sm rounded-[22px] border border-[#e7e9ed] bg-white p-9 text-center shadow-[0_12px_40px_rgb(25_42_62/5%)]">
           <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[#345edb] text-2xl font-bold tracking-[-1.5px] text-white">
@@ -117,7 +115,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-dvh bg-[#eef1f5] text-[#243244] sm:px-5 sm:py-6 lg:px-8">
       <Head>
-        <title>{title} | Mini SaaS</title>
+        <title>Mini SaaS</title>
         <meta
           name="description"
           content="Your projects, deadlines, and team in one workspace."

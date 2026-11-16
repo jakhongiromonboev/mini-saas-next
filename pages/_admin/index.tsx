@@ -5,7 +5,7 @@ import { MemberType } from '@/libs/enums/member.enum';
 
 const AdminProjects: NextPage = () => {
   return (
-    <DashboardLayout requiredRole={MemberType.ADMIN} title="Projects">
+    <DashboardLayout requiredRole={MemberType.ADMIN}>
       <ProjectWorkspace memberType={MemberType.ADMIN} />
     </DashboardLayout>
   );
