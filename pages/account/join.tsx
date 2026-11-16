@@ -1,7 +1,9 @@
 import Head from 'next/head';
 import type { NextPage } from 'next';
-import { useRef, useState, type SubmitEvent } from 'react';
+import { useRouter } from 'next/router';
+import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { logIn, logOut, signUp } from '@/libs/auth';
+import { getDashboardPath } from '@/libs/auth/navigation';
 import AccountCard from '@/libs/components/auth/AccountCard';
 import AuthLayout from '@/libs/components/layout/AuthLayout';
 import { useAuth } from '@/libs/hooks/useAuth';
@@ -14,6 +16,7 @@ const primaryButtonClassName =
   'flex min-h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-[#345edb] px-4 py-3 text-sm font-semibold text-white shadow-[0_5px_13px_rgba(52,94,219,0.23)] transition-colors hover:bg-[#294fc1] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#345edb] disabled:cursor-wait disabled:opacity-60';
 
 const Join: NextPage = () => {
+  const router = useRouter();
   const { member, isLoading, sessionError, updateMember } = useAuth();
   const [loginView, setLoginView] = useState(true);
   const [input, setInput] = useState<SignupInput>({
@@ -32,6 +35,30 @@ const Join: NextPage = () => {
   const actionLabel = loginView ? 'Sign in' : 'Create account';
   const pendingLabel = loginView ? 'Signing in…' : 'Creating account…';
   const pageTitle = member ? 'Your account' : actionLabel;
+  const dashboardPath = member ? getDashboardPath(member.memberType) : null;
+
+  useEffect(() => {
+    if (
+      isLoading ||
+      !router.isReady ||
+      !dashboardPath ||
+      dashboardPath === '/account/join'
+    ) {
+      return;
+    }
+
+    let active = true;
+
+    void router.replace(dashboardPath).catch(() => {
+      if (active) {
+        setError('We could not open your workspace. Please try again.');
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [dashboardPath, isLoading, router]);
 
   const handleInput = (field: keyof SignupInput, value: string) => {
     setInput((previous) => ({ ...previous, [field]: value }));
