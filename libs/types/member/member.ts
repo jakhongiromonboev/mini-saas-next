@@ -9,3 +9,9 @@ export interface Member {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface MemberListItem {
+  _id: string;
+  memberName: string;
+  memberEmail: string;
+}

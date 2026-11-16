@@ -1,7 +1,18 @@
+import { useState } from 'react';
 import WorkspaceIcon, {
   type WorkspaceIconName,
 } from '@/libs/components/common/WorkspaceIcon';
 import { MemberType } from '@/libs/enums/member.enum';
+import { ProjectStatus } from '@/libs/enums/project.enum';
+import { useProjectWorkspace } from '@/libs/hooks/useProjectWorkspace';
+import {
+  formatBudget,
+  formatDeadline,
+  getProjectSummary,
+  isDeadlineOverdue,
+  projectStatusLabels,
+} from '@/libs/utils/project';
+import ProjectTable from './ProjectTable';
 
 interface ProjectWorkspaceProps {
   memberType: MemberType;
@@ -9,6 +20,7 @@ interface ProjectWorkspaceProps {
 
 interface SummaryCard {
   label: string;
+  value: string;
   description: string;
   icon: WorkspaceIconName;
 }
@@ -17,26 +29,62 @@ export default function ProjectWorkspace({
   memberType,
 }: ProjectWorkspaceProps) {
   const isAdmin = memberType === MemberType.ADMIN;
+  const {
+    projects,
+    members,
+    error,
+    memberError,
+    isLoading,
+    membersLoading,
+    retry,
+  } = useProjectWorkspace();
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<ProjectStatus | ''>('');
+  const summary = projects ? getProjectSummary(projects) : null;
+  const nextProject = summary?.nextProject;
+  const query = search.trim().toLowerCase();
+  const visibleProjects = (projects ?? []).filter(
+    (project) =>
+      (!status || project.projectStatus === status) &&
+      project.projectName.toLowerCase().includes(query),
+  );
+  const hasFilters = Boolean(query || status);
+
+  const clearFilters = () => {
+    setSearch('');
+    setStatus('');
+  };
+
   const summaryCards: SummaryCard[] = [
     {
       label: isAdmin ? 'Total projects' : 'Assigned projects',
+      value: summary ? summary.total.toLocaleString('en-US') : '—',
       description: isAdmin ? 'Across all team members' : 'Across all statuses',
       icon: 'folder',
     },
     {
       label: 'Active now',
+      value: summary ? summary.active.toLocaleString('en-US') : '—',
       description: 'Currently in progress',
       icon: 'activity',
     },
     isAdmin
       ? {
           label: 'Total budget',
+          value: summary ? formatBudget(summary.budget) : '—',
           description: 'Allocated across all projects',
           icon: 'wallet',
         }
       : {
           label: 'Next deadline',
-          description: 'Your next project milestone',
+          value: nextProject
+            ? formatDeadline(nextProject.projectDeadline, true)
+            : '—',
+          description: nextProject
+            ? `${isDeadlineOverdue(nextProject.projectDeadline) ? 'Overdue · ' : ''}${nextProject.projectName}`
+            : summary
+              ? 'No unfinished projects'
+              : 'Your next project milestone',
           icon: 'calendar',
         },
   ];
@@ -84,7 +132,7 @@ export default function ProjectWorkspace({
         {summaryCards.map((card) => (
           <div
             key={card.label}
-            className="rounded-[22px] border border-white bg-white px-6 py-6 shadow-[0_10px_32px_rgb(25_42_62/5%)] lg:px-7"
+            className="min-w-0 rounded-[22px] border border-white bg-white px-6 py-6 shadow-[0_10px_32px_rgb(25_42_62/5%)] lg:px-7"
           >
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[13px] font-normal text-[#65717e]">
@@ -95,12 +143,12 @@ export default function ProjectWorkspace({
               </span>
             </div>
             <p
-              className="mt-3 text-[30px] leading-tight font-semibold tracking-[-0.8px] text-[#263342]"
-              aria-label={`${card.label}: not available`}
+              className="mt-3 text-[30px] leading-tight font-semibold tracking-[-0.8px] text-[#263342] tabular-nums wrap-anywhere"
+              aria-label={`${card.label}: ${summary ? (card.value === '—' ? 'None' : card.value) : 'not available'}`}
             >
-              —
+              {card.value}
             </p>
-            <p className="mt-2.5 text-xs leading-5 text-[#76818d]">
+            <p className="mt-2.5 text-xs leading-5 text-[#76818d] wrap-anywhere">
               {card.description}
             </p>
           </div>
@@ -109,6 +157,7 @@ export default function ProjectWorkspace({
 
       <section
         aria-label={isAdmin ? 'Team projects' : 'Assigned projects'}
+        aria-busy={isLoading}
         className="mt-7 overflow-hidden rounded-[18px] border border-[#e3e7eb] bg-white shadow-[0_8px_28px_rgb(25_42_62/3%)]"
       >
         <div className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -123,17 +172,29 @@ export default function ProjectWorkspace({
               placeholder={
                 isAdmin ? 'Search projects…' : 'Search your projects…'
               }
-              disabled
-              className="h-11 w-full rounded-lg border border-[#e3e7eb] bg-[#fdfdfd] pr-3 pl-10 text-sm text-[#647281] placeholder:text-[#86909b] disabled:cursor-not-allowed"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              maxLength={200}
+              disabled={isLoading || Boolean(error)}
+              className="h-11 w-full rounded-lg border border-[#e3e7eb] bg-[#fdfdfd] pr-3 pl-10 text-sm text-[#647281] placeholder:text-[#86909b] focus:border-[#345edb] focus:outline-none focus:ring-2 focus:ring-[#345edb]/15 disabled:cursor-not-allowed"
             />
           </div>
           <div className="relative">
             <select
               aria-label="Filter by project status"
-              disabled
-              className="h-11 w-full appearance-none rounded-lg border border-[#e3e7eb] bg-[#fdfdfd] pr-10 pl-4 text-xs text-[#647281] disabled:cursor-not-allowed sm:w-[145px]"
+              value={status}
+              onChange={(event) =>
+                setStatus(event.target.value as ProjectStatus | '')
+              }
+              disabled={isLoading || Boolean(error)}
+              className="h-11 w-full appearance-none rounded-lg border border-[#e3e7eb] bg-[#fdfdfd] pr-10 pl-4 text-xs text-[#647281] focus:border-[#345edb] focus:outline-none focus:ring-2 focus:ring-[#345edb]/15 disabled:cursor-not-allowed sm:w-[145px]"
             >
-              <option>All statuses</option>
+              <option value="">All statuses</option>
+              {Object.values(ProjectStatus).map((value) => (
+                <option key={value} value={value}>
+                  {projectStatusLabels[value]}
+                </option>
+              ))}
             </select>
             <WorkspaceIcon
               name="chevron"
@@ -141,62 +202,94 @@ export default function ProjectWorkspace({
             />
           </div>
         </div>
-        <div
-          role="region"
-          aria-label="Project table"
-          tabIndex={0}
-          className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#345edb]"
-        >
-          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
-            <caption className="sr-only">
-              {isAdmin
-                ? 'Team project details'
-                : 'Your assigned project details'}
-            </caption>
-            <thead className="border-y border-[#e7eaee] bg-[#f8f9fb] text-[11px] font-medium tracking-[0.015em] text-[#687583]">
-              <tr>
-                <th scope="col" className="px-5 py-3.5 font-medium">
-                  Project name
-                </th>
-                <th scope="col" className="px-4 py-3.5 font-medium">
-                  Status
-                </th>
-                <th scope="col" className="px-4 py-3.5 font-medium">
-                  Deadline
-                </th>
-                {isAdmin && (
-                  <th scope="col" className="px-4 py-3.5 font-medium">
-                    Assigned member
-                  </th>
-                )}
-                <th scope="col" className="px-5 py-3.5 text-right font-medium">
-                  Budget (USD)
-                </th>
-                {isAdmin && (
-                  <th scope="col" className="px-5 py-3.5 font-medium">
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              <tr aria-hidden="true">
-                <td colSpan={isAdmin ? 6 : 4} className="h-4" />
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="flex min-h-[250px] flex-col items-center justify-center px-6 pt-3 pb-10 text-center">
-          <span className="flex size-14 items-center justify-center rounded-2xl border border-[#e4eaf6] bg-[#f0f4fd] text-[#5271be]">
-            <WorkspaceIcon name="folder" className="size-6" />
-          </span>
-          <h2 className="mt-5 text-base font-semibold tracking-[-0.3px]">
-            Your projects, in one place
-          </h2>
-          <p className="mt-2 max-w-sm text-sm leading-6 text-[#7a8592]">
-            Project details will appear here.
+        {memberError && !isLoading && !error && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-3 border-t border-[#ede7d7] bg-[#fffbf0] px-5 py-3 text-xs leading-5 text-[#7b632a]"
+          >
+            <p>{memberError} Projects are still available.</p>
+            <button
+              type="button"
+              onClick={retry}
+              className="rounded px-2 py-1 font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        <ProjectTable
+          projects={visibleProjects}
+          members={members}
+          isAdmin={isAdmin}
+          membersLoading={membersLoading}
+        />
+        {isLoading ? (
+          <div
+            role="status"
+            className="flex min-h-[250px] flex-col items-center justify-center gap-4 px-6 text-sm text-[#687582]"
+          >
+            <span
+              aria-hidden="true"
+              className="size-6 rounded-full border-2 border-[#e7ecf5] border-t-[#345edb] motion-safe:animate-spin"
+            />
+            Loading your projects…
+          </div>
+        ) : error ? (
+          <div
+            role="alert"
+            className="flex min-h-[250px] flex-col items-center justify-center px-6 py-10 text-center"
+          >
+            <h2 className="text-base font-semibold">
+              We couldn’t load your projects
+            </h2>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-[#7a8592]">
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={retry}
+              className="mt-5 min-h-11 rounded-lg bg-[#345edb] px-5 text-sm font-medium text-white hover:bg-[#294fc1] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#345edb]"
+            >
+              Try again
+            </button>
+          </div>
+        ) : visibleProjects.length === 0 ? (
+          <div className="flex min-h-[250px] flex-col items-center justify-center px-6 py-10 text-center">
+            <span className="flex size-14 items-center justify-center rounded-2xl border border-[#e4eaf6] bg-[#f0f4fd] text-[#5271be]">
+              <WorkspaceIcon name="folder" className="size-6" />
+            </span>
+            <h2 className="mt-5 text-base font-semibold tracking-[-0.3px]">
+              {hasFilters
+                ? 'No matching projects'
+                : isAdmin
+                  ? 'No projects yet'
+                  : 'No projects assigned yet'}
+            </h2>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-[#7a8592]">
+              {hasFilters
+                ? 'Try a different search or status.'
+                : isAdmin
+                  ? 'Your team’s projects will appear here.'
+                  : 'Projects assigned to you will appear here.'}
+            </p>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-4 min-h-11 rounded-lg px-4 text-sm font-medium text-[#345edb] hover:bg-[#f0f4fd] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#345edb]"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        ) : (
+          <p
+            role="status"
+            className="border-t border-[#e7eaee] px-5 py-3.5 text-xs text-[#7a8592]"
+          >
+            Showing {visibleProjects.length} of {projects?.length} projects
           </p>
-        </div>
+        )}
       </section>
     </>
   );
