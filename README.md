@@ -226,7 +226,7 @@ On Render, set `NODE_ENV=production` and `CLIENT_ORIGIN` to the exact HTTPS fron
 
 After deployment, check `/api/health` on the frontend URL, then verify login, refresh, admin/member access, project changes, and logout. Successful builds alone do not verify deployed cookies or database access.
 
-Render's free service may sleep while idle. The current frontend request timeout is 10 seconds, so the first request can time out while the API starts. Allow it to start before trying again; project writes are never automatically retried.
+Render's free service may sleep while idle. On a fresh page load, the frontend checks API health before restoring the session. A slow start shows the branded connection screen; health checks retry for up to 90 seconds before offering **Try again**. Normal API requests retain their 10-second timeout, and project writes are never automatically retried.
 
 ### Running a production build locally
 
