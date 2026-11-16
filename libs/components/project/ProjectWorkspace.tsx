@@ -14,7 +14,7 @@ import {
   projectStatusLabels,
 } from '@/libs/utils/project';
 import ProjectTable from './ProjectTable';
-import AddProjectModal from './AddProjectModal';
+import ProjectModal from './ProjectModal';
 
 interface ProjectWorkspaceProps {
   memberType: MemberType;
@@ -40,10 +40,12 @@ export default function ProjectWorkspace({
     membersLoading,
     retry,
     addProject,
+    replaceProject,
   } = useProjectWorkspace();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ProjectStatus | ''>('');
-  const [showAddProject, setShowAddProject] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const summary = projects ? getProjectSummary(projects) : null;
   const nextProject = summary?.nextProject;
@@ -54,21 +56,44 @@ export default function ProjectWorkspace({
       project.projectName.toLowerCase().includes(query),
   );
   const hasFilters = Boolean(query || status);
+  const canManageProjects =
+    isAdmin &&
+    !isLoading &&
+    !error &&
+    !membersLoading &&
+    !memberError &&
+    members.length > 0;
 
   const clearFilters = () => {
     setSearch('');
     setStatus('');
   };
 
-  const handleProjectCreated = (project: Project) => {
-    addProject(project);
+  const closeProjectModal = () => {
+    setShowProjectModal(false);
+    setEditingProject(null);
+  };
+
+  const openEditProject = (project: Project) => {
+    setSuccessMessage(null);
+    setEditingProject(project);
+    setShowProjectModal(true);
+  };
+
+  const handleProjectSaved = (project: Project) => {
+    if (editingProject) {
+      replaceProject(project);
+      setSuccessMessage('Project updated successfully.');
+    } else {
+      addProject(project);
+      setSuccessMessage('Project created successfully.');
+    }
     clearFilters();
-    setShowAddProject(false);
-    setSuccessMessage('Project created successfully.');
+    closeProjectModal();
   };
 
   const checkProjects = () => {
-    setShowAddProject(false);
+    closeProjectModal();
     clearFilters();
     retry();
   };
@@ -127,18 +152,13 @@ export default function ProjectWorkspace({
           <button
             type="button"
             aria-haspopup="dialog"
-            aria-controls={showAddProject ? 'add-project-dialog' : undefined}
+            aria-controls={showProjectModal ? 'project-dialog' : undefined}
             onClick={() => {
               setSuccessMessage(null);
-              setShowAddProject(true);
+              setEditingProject(null);
+              setShowProjectModal(true);
             }}
-            disabled={
-              isLoading ||
-              Boolean(error) ||
-              membersLoading ||
-              Boolean(memberError) ||
-              members.length === 0
-            }
+            disabled={!canManageProjects}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-[#345edb] px-4 text-sm font-medium text-white shadow-[0_4px_12px_rgb(52_94_219/12%)] hover:bg-[#294fc1] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#345edb] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <WorkspaceIcon name="plus" className="size-[18px]" />
@@ -266,6 +286,8 @@ export default function ProjectWorkspace({
           members={members}
           isAdmin={isAdmin}
           membersLoading={membersLoading}
+          canEdit={canManageProjects}
+          onEdit={openEditProject}
         />
         {isLoading ? (
           <div
@@ -335,11 +357,13 @@ export default function ProjectWorkspace({
           </p>
         )}
       </section>
-      {isAdmin && showAddProject && (
-        <AddProjectModal
+      {isAdmin && showProjectModal && (
+        <ProjectModal
+          key={editingProject?._id ?? 'new'}
+          project={editingProject ?? undefined}
           members={members}
-          onClose={() => setShowAddProject(false)}
-          onCreated={handleProjectCreated}
+          onClose={closeProjectModal}
+          onSaved={handleProjectSaved}
           onCheckProjects={checkProjects}
         />
       )}

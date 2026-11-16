@@ -7,15 +7,20 @@ import {
 } from 'react';
 import { ProjectStatus } from '@/libs/enums/project.enum';
 import { useAuth } from '@/libs/hooks/useAuth';
-import { createProject, ProjectError } from '@/libs/services/project.service';
+import {
+  createProject,
+  updateProject,
+  ProjectError,
+} from '@/libs/services/project.service';
 import type { MemberListItem } from '@/libs/types/member/member';
 import type { Project } from '@/libs/types/project/project';
 import { projectStatusLabels } from '@/libs/utils/project';
 
-interface AddProjectModalProps {
+interface ProjectModalProps {
+  project?: Project;
   members: MemberListItem[];
   onClose: () => void;
-  onCreated: (project: Project) => void;
+  onSaved: (project: Project) => void;
   onCheckProjects: () => void;
 }
 
@@ -32,12 +37,14 @@ type FieldErrors = Partial<Record<keyof ProjectForm, string>>;
 const inputClassName =
   'h-12 w-full min-w-0 rounded-xl border border-[#dfe4ea] bg-white px-3.5 text-base text-[#243244] shadow-[0_1px_2px_rgb(25_42_62/3%)] focus:border-[#345edb] focus:outline-none focus:ring-2 focus:ring-[#345edb]/20 disabled:opacity-60 aria-invalid:border-red-400 aria-invalid:focus:ring-red-100';
 
-export default function AddProjectModal({
+export default function ProjectModal({
+  project,
   members,
   onClose,
-  onCreated,
+  onSaved,
   onCheckProjects,
-}: AddProjectModalProps) {
+}: ProjectModalProps) {
+  const isEditing = Boolean(project);
   const { updateMember } = useAuth();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -46,11 +53,12 @@ export default function AddProjectModal({
   const mounted = useRef(false);
   const requestPending = useRef(false);
   const [input, setInput] = useState<ProjectForm>({
-    projectName: '',
-    projectStatus: ProjectStatus.ACTIVE,
-    projectDeadline: '',
-    memberId: '',
-    projectBudget: '',
+    projectName: project?.projectName ?? '',
+    projectStatus: project?.projectStatus ?? ProjectStatus.ACTIVE,
+    // Keep the API's calendar date unchanged, regardless of the browser timezone.
+    projectDeadline: project?.projectDeadline.slice(0, 10) ?? '',
+    memberId: project?.memberId ?? '',
+    projectBudget: project ? String(project.projectBudget) : '',
   });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +75,7 @@ export default function AddProjectModal({
         ? document.activeElement
         : null;
     const previousOverflow = document.body.style.overflow;
+    const workspace = previousFocus?.closest('main');
     dialog.showModal();
     document.body.style.overflow = 'hidden';
     nameRef.current?.focus();
@@ -75,11 +84,11 @@ export default function AddProjectModal({
       mounted.current = false;
       dialog.close();
       document.body.style.overflow = previousOverflow;
-      if (previousFocus?.isConnected) {
-        const focusTarget = previousFocus.matches(':disabled')
-          ? previousFocus.closest('main')
-          : previousFocus;
-        focusTarget?.focus({ preventScroll: true });
+      if (previousFocus?.isConnected && !previousFocus.matches(':disabled')) {
+        previousFocus.focus({ preventScroll: true });
+      } else if (workspace?.isConnected) {
+        // A refreshed list can remove the Edit button that opened this modal.
+        workspace.focus({ preventScroll: true });
       }
     };
   }, []);
@@ -129,7 +138,7 @@ export default function AddProjectModal({
     }
   };
 
-  const doCreateProject = async (event: SubmitEvent<HTMLFormElement>) => {
+  const doSaveProject = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (requestPending.current || needsCheck) return;
 
@@ -170,18 +179,32 @@ export default function AddProjectModal({
     setIsPending(true);
 
     try {
-      const project = await createProject({
+      const projectInput = {
         projectName: name,
         projectStatus: input.projectStatus,
         projectDeadline: deadline,
         memberId: input.memberId,
         projectBudget: budget,
-      });
-      if (mounted.current) onCreated(project);
+      };
+
+      // Editing uses the existing ID in the URL; only editable fields are sent.
+      const savedProject = project
+        ? await updateProject(project._id, projectInput)
+        : await createProject(projectInput);
+
+      if (mounted.current) onSaved(savedProject);
     } catch (error) {
       if (!mounted.current) return;
       if (error instanceof ProjectError && error.status === 401) {
         updateMember(null);
+        return;
+      }
+
+      if (isEditing && error instanceof ProjectError && error.status === 404) {
+        setNeedsCheck(true);
+        setError(
+          'This project is no longer available. Check the project list to continue.',
+        );
         return;
       }
 
@@ -193,7 +216,7 @@ export default function AddProjectModal({
       ) {
         setNeedsCheck(true);
         setError(
-          'We couldn’t confirm whether the project was created. Check the project list before trying again.',
+          `We couldn’t confirm whether the project was ${isEditing ? 'updated' : 'created'}. Check the project list before trying again.`,
         );
       } else {
         setError(error.message);
@@ -207,9 +230,9 @@ export default function AddProjectModal({
   return (
     <dialog
       ref={dialogRef}
-      id="add-project-dialog"
-      aria-labelledby="add-project-title"
-      aria-describedby="add-project-description"
+      id="project-dialog"
+      aria-labelledby="project-dialog-title"
+      aria-describedby="project-dialog-description"
       onKeyDown={handleKeyDown}
       onCancel={(event) => {
         event.preventDefault();
@@ -218,21 +241,23 @@ export default function AddProjectModal({
       className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[640px] overflow-y-auto rounded-[26px] border border-[#e2e7ee] bg-white p-6 text-[#243244] shadow-[0_28px_100px_rgb(9_22_42/25%)] backdrop:bg-[#101b2d]/45 backdrop:backdrop-blur-[2px] sm:p-9"
     >
       <h2
-        id="add-project-title"
+        id="project-dialog-title"
         className="text-[28px] leading-tight font-semibold tracking-[-0.9px] sm:text-[32px]"
       >
-        Add project
+        {isEditing ? 'Edit project' : 'Add project'}
       </h2>
       <p
-        id="add-project-description"
+        id="project-dialog-description"
         className="mt-3 text-sm leading-6 text-[#7a8592] sm:text-base"
       >
-        Bring the details together and assign an owner.
+        {isEditing
+          ? 'Update the details and keep your team on track.'
+          : 'Bring the details together and assign an owner.'}
       </p>
 
       <form
         ref={formRef}
-        onSubmit={doCreateProject}
+        onSubmit={doSaveProject}
         noValidate
         aria-busy={isPending}
         className="mt-7"
@@ -378,6 +403,12 @@ export default function AddProjectModal({
               <option value="" disabled>
                 Select a member
               </option>
+              {project &&
+                !members.some((member) => member._id === project.memberId) && (
+                  <option value={project.memberId} disabled>
+                    Current member unavailable
+                  </option>
+                )}
               {members.map((member) => (
                 <option key={member._id} value={member._id}>
                   {member.memberName} ({member.memberEmail})
@@ -441,7 +472,13 @@ export default function AddProjectModal({
             disabled={isPending || needsCheck}
             className="min-h-12 flex-1 rounded-xl bg-[#345edb] px-6 text-sm font-medium text-white shadow-[0_4px_12px_rgb(52_94_219/12%)] hover:bg-[#294fc1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#345edb] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
           >
-            {isPending ? 'Creating project…' : 'Create project'}
+            {isPending
+              ? isEditing
+                ? 'Saving changes…'
+                : 'Creating project…'
+              : isEditing
+                ? 'Save changes'
+                : 'Create project'}
           </button>
         </div>
         {isPending && (

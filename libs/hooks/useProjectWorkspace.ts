@@ -113,6 +113,22 @@ export function useProjectWorkspace() {
     });
   };
 
+  const replaceProject = (updatedProject: Project) => {
+    if (!isAdmin) return;
+
+    setData((previous) => {
+      if (previous?.requestKey !== requestKey || !previous.projects)
+        return previous;
+
+      return {
+        ...previous,
+        projects: previous.projects.map((project) =>
+          project._id === updatedProject._id ? updatedProject : project,
+        ),
+      };
+    });
+  };
+
   return {
     projects: current?.projects ?? null,
     members: current?.members ?? [],
@@ -122,5 +138,6 @@ export function useProjectWorkspace() {
     membersLoading: current?.membersLoading ?? isAdmin,
     retry: () => setAttempt((previous) => previous + 1),
     addProject,
+    replaceProject,
   };
 }

@@ -12,6 +12,8 @@ interface ProjectTableProps {
   members: MemberListItem[];
   isAdmin: boolean;
   membersLoading: boolean;
+  canEdit: boolean;
+  onEdit: (project: Project) => void;
 }
 
 const statusClasses: Record<ProjectStatus, string> = {
@@ -25,6 +27,8 @@ export default function ProjectTable({
   members,
   isAdmin,
   membersLoading,
+  canEdit,
+  onEdit,
 }: ProjectTableProps) {
   const memberNames = new Map(
     members.map((member) => [member._id, member.memberName]),
@@ -127,9 +131,11 @@ export default function ProjectTable({
                     <div className="flex gap-4 text-xs">
                       <button
                         type="button"
-                        disabled
+                        onClick={() => onEdit(project)}
+                        disabled={!canEdit}
+                        aria-haspopup="dialog"
                         aria-label={`Edit ${project.projectName}`}
-                        className="min-h-9 text-[#345edb] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="min-h-9 rounded px-1 text-[#345edb] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#345edb] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Edit
                       </button>
